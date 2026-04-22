@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>夜行人格测试 · 完整记录版</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: linear-gradient(145deg, #0b0e1a, #0f1322);
+      font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      padding: 20px;
+      color: #f0f3ff;
+    }
+    .container { max-width: 700px; margin: 0 auto; }
+    .card {
+      background: rgba(18, 25, 55, 0.8);
+      backdrop-filter: blur(10px);
+      border-radius: 28px;
+      padding: 24px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(110, 130, 230, 0.3);
+    }
+    h1 { font-size: 28px; margin-bottom: 10px; }
+    .badge {
+      background: rgba(140, 170, 255, 0.2);
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+    .progress-area {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .progress-bar {
+      flex: 1;
+      height: 6px;
+      background: #2a2f50;
+      border-radius: 10px;
+    }
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #7c93ff, #c084fc);
+      border-radius: 10px;
+      transition: width 0.3s;
+    }
+    .question-text {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      line-height: 1.4;
+    }
+    .option {
+      background: rgba(25, 32, 65, 0.7);
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      border: 1px solid rgba(120, 140, 220, 0.2);
+      transition: all 0.2s;
+    }
+    .option:hover {
+      background: #202a50;
+      transform: translateX(4px);
+    }
+    .option.selected {
+      background: #293472;
+      border-color: #8aa3ff;
+    }
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+      gap: 12px;
+    }
+    button {
+      background: #2a2f4e;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 40px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.primary {
+      background: linear-gradient(110deg, #6d86e6, #a855f7);
+    }
+    button.primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .name-input {
+      margin-top: 20px;
+      padding: 12px;
+      background: #0f142c;
+      border-radius: 16px;
+    }
+    .name-input input {
+      width: 100%;
+      background: #191f3c;
+      border: 1px solid #2f3870;
+      padding: 10px 14px;
+      border-radius: 30px;
+      color: white;
+      margin-top: 8px;
+    }
+    .result-card { display: none; }
+    .result-card.show { display: block; }
+    .gift-box {
+      background: #11162e;
+      border-radius: 16px;
+      padding: 16px;
+      margin-top: 16px;
+      text-align: center;
+    }
+    .share-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f2546;
+      padding: 8px 20px;
+      border-radius: 40px;
+      font-size: 13px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      z-index: 999;
+    }
+    .admin-btn {
+      background: #3a2a5a;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <!-- 标题卡片 -->
+  <div class="card">
+    <div class="badge">夜行人格研究所</div>
+    <h1>测测你是哪一种夜行动物</h1>
+    <p style="color: #a5b3d9; font-size: 14px;">共30题 · 按第一反应作答</p>
+  </div>
+
+  <!-- 答题卡片 -->
+  <div class="card" id="quizCard">
+    <div class="progress-area">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <span id="counter">1/30</span>
+    </div>
+    <div id="questionContainer"></div>
+    <div class="actions">
+      <button id="prevBtn" style="visibility: hidden;">← 上一题</button>
+      <button id="nextBtn" class="primary" disabled>下一题</button>
+    </div>
+  </div>
+
+  <!-- 结果卡片 -->
+  <div class="card result-card" id="resultCard">
+    <div id="resultContent"></div>
+  </div>
+
+  <!-- 数据管理面板（连续点标题5次出现） -->
+  <div class="card" id="adminPanel" style="display: none;">
+    <div class="badge" style="background: #4a3a6e;">📊 数据管理面板</div>
+    <p style="margin-bottom: 12px;">已保存 <span id="recordCount">0</span> 条答题记录</p>
+    <div class="share-buttons">
+      <button id="exportBtn" class="primary" style="background: #2d5a3b;">📎 导出 CSV（含每道题答案）</button>
+      <button id="clearBtn" class="secondary" style="background: #5a2a2a;">🗑️ 清空所有记录</button>
+    </div>
+    <p style="font-size: 11px; color: #8f9ed0; margin-top: 12px;">💡 导出的 CSV 文件可以用 Excel 打开，能看到每个人每道题的选项</p>
+  </div>
+</div>
+<div class="toast" id="toastMsg"></div>
+
+<script>
+  // ==================== 完整题库 ====================
+  const QUESTIONS = [
+    "临时多出一个完整晚上，你最想怎么过？",
+    "朋友临时约你，你最容易被哪句话打动？",
+    "你更喜欢别人怎么形容你？",
+    "面对一份新鲜事物，你通常会先注意什么？",
+    "你在群里通常更像哪种人？",
+    "你最理想的工作/学习环境是？",
+    "当你想奖励自己时，更偏向哪种方式？",
+    "你对'精致'的理解更接近哪一个？",
+    "你最容易被哪类内容种草？",
+    "在一个新地方，你会先做什么？",
+    "你做选择时更相信什么？",
+    "如果你的生活是一种镜头语言，会更像？",
+    "朋友找你帮忙挑东西时，你会优先问什么？",
+    "你最怕哪种东西？",
+    "你通常通过什么方式恢复电量？",
+    "你会把哪种小事视为'生活质量提升'？",
+    "如果只能留下一种'个人标签'，你选？",
+    "哪种礼貌最能打动你？",
+    "你理想中的周末早晨更像？",
+    "你更想拥有哪种能力？",
+    "逛一圈生活方式集合店，你最容易在哪一区停下？",
+    "别人夸你'很会选东西'，通常是指你更擅长选？",
+    "如果有人悄悄观察你的日常，他最可能发现你在意哪件事？",
+    "收到一份'不是特别贵，但很懂你'的小惊喜，你最希望它偏向？",
+    "周末市集只能带走两样'战利品'，你会优先拿哪两样？",
+    "别人初见你，最容易记住你哪一点？",
+    "你对'享受生活'的理解更接近？",
+    "你更容易收藏哪类东西？",
+    "一份好的礼物在你眼里最重要的是？",
+    "如果今晚要给你的生活下一个标题，你会选？"
+  ];
+
+  // 每个题目的选项
+  const OPTIONS = [
+    ["换身利落穿搭，出门逛街或看夜景", "整理桌面，把常用设备调到最顺手", "窝进一个有音乐和灯光的角落慢慢待着", "去运动、散步或者做点让身体发热的事"],
+    ["今天穿得很好看，出来拍两张", "我这儿有个新设备，你一定想试", "这家店的氛围像老电影", "走，出去动一动，别在家闷着"],
+    ["有品味，出场就有存在感", "靠谱，东西总挑得专业又实用", "有故事感，审美很耐看", "有活力，状态总是很在线"],
+    ["外形、风格、第一眼气质", "参数、功能、使用逻辑", "氛围、质感、背后的故事", "能不能立刻用起来，是否让人振奋"],
+    ["偶尔出现，但一说话就很有记忆点", "负责解答问题和给出可执行方案", "会分享歌单、电影和一些细节情绪", "最先响应，能把大家带动起来"],
+    ["干净利落，还要有一点个人风格", "设备齐全、逻辑清楚、效率优先", "有灯光、音乐和一点复古感", "最好坐久了也能随时起身活动"],
+    ["买点能提升整体气场的小东西", "升级一个日常会高频使用的工具", "给生活加一点仪式感和收藏感", "投资能让身体状态更好的东西"],
+    ["看起来松弛，但细节都被照顾到", "每一步都顺手，几乎没有多余动作", "让空间和时间都慢下来", "精神和体力都保持充沛"],
+    ["穿搭、美感、气味和个人风格", "桌搭、设备、效率升级", "老歌、胶片、复古生活方式", "训练、体态、健康和状态管理"],
+    ["找最好看的角落和最适合拍照的光线", "迅速摸清布局和最省事的动线", "观察背景音乐、陈设和整体氛围", "看看有没有能走走逛逛或活动的空间"],
+    ["我一眼就知道这个适合我", "先比较，再选最合适的", "只要它和我的感觉对上", "能立刻改善状态的最重要"],
+    ["时尚短片，利落又有辨识度", "操作演示，清晰、精准、节奏快", "旧电影，慢镜头里有余味", "运动纪录片，真实、有冲劲"],
+    ["你想给人什么感觉", "你最常在哪种场景下用", "你喜欢什么气氛和故事线", "它能不能真正提升你的状态"],
+    ["没有风格、没有记忆点", "不好用、步骤繁琐", "太吵太快、没有情绪空间", "让人更疲惫、更没精神"],
+    ["整理形象、出门透气、换个状态", "把杂乱事情归位，重建秩序", "听歌、独处、沉浸在熟悉氛围里", "睡饱、运动、补充营养"],
+    ["整体气质更完整了", "每天都能少费很多劲", "日常多了一点仪式感", "人明显更精神、更有力气"],
+    ["会打扮，也懂分寸", "懂工具，也懂效率", "有品味，也有情绪温度", "自律、利落、精力好"],
+    ["注意你的风格和出现方式", "记住你的使用习惯和偏好", "记得你的喜好、歌单和情绪", "关心你的作息、饮食和状态"],
+    ["慢慢挑衣服，然后出门晒太阳", "收拾桌面，开电脑做点喜欢的事", "放一张喜欢的唱片或歌单，慢慢醒来", "晨练、散步，或者做一顿高蛋白早餐"],
+    ["不费力就让人记住你", "把复杂的事处理得井井有条", "把普通日子过得像有滤镜", "长期保持好状态和执行力"],
+    ["配饰和气味区", "数码和桌搭区", "音乐和复古家居区", "运动营养和功能食品区"],
+    ["有风格加成的物件", "能天天用、越用越顺手的装备", "有收藏感和情绪价值的东西", "对身体状态真有帮助的补给"],
+    ["整体形象和出现时的气场", "手边工具是否顺手高效", "背景音乐和空间氛围是否对味", "饮食、锻炼和恢复是否跟得上"],
+    ["提升风格识别度", "升级工作或娱乐手感", "让房间和夜晚更有氛围", "帮助自己更好地恢复和充电"],
+    ["一副线条好看的墨镜", "一只手感很顺的鼠标", "一把敲起来很舒服的键盘", "一支留香高级的香水", "一台适合房间角落的唱片机", "一桶口味不错的蛋白粉"],
+    ["很有风格，细节看得出来", "说话做事很有条理", "气质温和但有自己的世界", "状态很好，行动很干脆"],
+    ["让自己看起来和感觉都更好", "把日常体验打磨得更顺手", "让时间变慢，感受细节", "保持旺盛体能和精神"],
+    ["配饰、香味或风格单品", "实用装备和高频工具", "唱片、海报和复古小物", "训练装备或健康补给"],
+    ["像你本人，拿出来就有辨识度", "真的会用，而且能用很久", "有氛围，有记忆点，有故事", "对当下状态有真实帮助"],
+    ["出场就该有自己的镜头感", "顺手，就是最高级的舒服", "把普通夜晚过成一部慢电影", "保持发电，才能持续发光"]
+  ];
+
+  // 计分规则：选项0→lynx, 1→fox, 2→deer, 3→wolf
+  const ANIMALS = ['lynx', 'fox', 'deer', 'wolf'];
+  const ANIMAL_NAMES = { lynx: '霓虹猞猁', fox: '工位雪狐', deer: '暮色鹿', wolf: '山脊狼' };
+  const ANIMAL_SUB = { lynx: '都市风格型', fox: '效率工具型', deer: '氛围收藏型', wolf: '机能充电型' };
+  const GIFT_NAMES = { sunglasses:'墨镜', perfume:'香水', mouse:'鼠标', keyboard:'键盘', turntable:'唱片机', protein:'蛋白粉' };
+
+  // 本地存储的 key
+  const STORAGE_KEY = 'NightPersonalityRecords';
+
+  let currentIndex = 0;
+  let answers = new Array(30).fill(null);  // 存储每道题的选项索引（单选存数字，多选存数组）
+  let name = '';
+
+  // ==================== 数据存储函数 ====================
+  function getRecords() {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (!data) return [];
+    try { return JSON.parse(data); } catch(e) { return []; }
+  }
+
+  function saveRecord(record) {
+    const records = getRecords();
+    records.push({
+      ...record,
+      timestamp: new Date().toISOString(),
+      id: Date.now() + '_' + Math.random().toString(36).substr(2, 6)
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    updateAdminPanel();
+  }
+
+  function updateAdminPanel() {
+    const count = getRecords().length;
+    const span = document.getElementById('recordCount');
+    if (span) span.textContent = count;
+  }
+
+  function exportToCSV() {
+    const records = getRecords();
+    if (records.length === 0) {
+      showToast('暂无记录，请先做一次测试');
+      return;
+    }
+
+    // CSV 列头：基本信息 + 30道题的选项
+    const headers = ['序号', '时间戳', '昵称', '人格结果', '副标题', '主要礼物', '次要礼物', '礼物分组'];
+    for (let i = 1; i <= 30; i++) {
+      headers.push(`第${i}题答案`);
+    }
+
+    const rows = [headers];
+    records.forEach((record, idx) => {
+      const row = [
+        idx + 1,
+        record.timestamp,
+        record.name || '',
+        record.animalName || '',
+        record.subtitle || '',
+        record.topGift || '',
+        record.secondGift || '',
+        record.group || ''
+      ];
+      // 添加每道题的答案（原始选项文本）
+      for (let i = 0; i < 30; i++) {
+        const answerValue = record.answers[i];
+        if (answerValue === undefined || answerValue === null) {
+          row.push('');
+        } else if (Array.isArray(answerValue)) {
+          // 多选：把选项文本拼起来
+          const texts = answerValue.map(idx => OPTIONS[i][idx]);
+          row.push(texts.join('、'));
+        } else {
+          row.push(OPTIONS[i][answerValue]);
+        }
+      }
+      rows.push(row);
+    });
+
+    // 转换为 CSV
+    const csvContent = rows.map(row => 
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+
+    // 下载
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', `夜行人格_完整记录_${new Date().toISOString().slice(0,19)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('导出成功！');
+  }
+
+  function clearRecords() {
+    if (confirm('⚠️ 确定要清空所有答题记录吗？此操作不可恢复！')) {
+      localStorage.removeItem(STORAGE_KEY);
+      updateAdminPanel();
+      showToast('已清空所有记录');
+    }
+  }
+
+  // ==================== 答题逻辑 ====================
+  function showToast(msg) {
+    const t = document.getElementById('toastMsg');
+    t.textContent = msg;
+    t.style.opacity = '1';
+    setTimeout(() => t.style.opacity = '0', 2000);
+  }
+
+  function updateProgress() {
+    const percent = ((currentIndex + 1) / 30) * 100;
+    document.getElementById('progressFill').style.width = `${percent}%`;
+    document.getElementById('counter').innerText = `${currentIndex + 1}/30`;
+  }
+
+  function renderQuestion() {
+    const isMulti = (currentIndex === 24); // 第25题是多选题
+    const saved = answers[currentIndex];
+    
+    let optionsHtml = '';
+    OPTIONS[currentIndex].forEach((opt, idx) => {
+      let isSelected = false;
+      if (isMulti) {
+        isSelected = Array.isArray(saved) && saved.includes(idx);
+      } else {
+        isSelected = saved === idx;
+      }
+      optionsHtml += `<div class="option ${isSelected ? 'selected' : ''}" data-idx="${idx}">
+        <span style="margin-right: 12px;">${isSelected ? '✓' : String.fromCharCode(65+idx)}</span>
+        ${escapeHtml(opt)}
+      </div>`;
+    });
+
+    let nameHtml = '';
+    if (currentIndex === 29) {
+      nameHtml = `<div class="name-input">
+        <div>✨ 昵称（可不填，用于区分记录）</div>
+        <input type="text" id="nameInput" placeholder="例如：小鹿" value="${escapeHtml(name)}">
+      </div>`;
+    }
+
+    document.getElementById('questionContainer').innerHTML = `
+      <div class="question-text">${currentIndex+1}. ${escapeHtml(QUESTIONS[currentIndex])}</div>
+      ${isMulti ? `<div style="font-size: 12px; color: #8f9ed0; margin-bottom: 12px;">🔘 可选 2 项</div>` : ''}
+      <div id="optionsList">${optionsHtml}</div>
+      ${nameHtml}
+    `;
+
+    // 绑定选项点击
+    document.querySelectorAll('.option').forEach(el => {
+      el.addEventListener('click', () => {
+        const optIdx = parseInt(el.dataset.idx);
+        if (isMulti) {
+          let current = answers[currentIndex] ? [...answers[currentIndex]] : [];
+          if (current.includes(optIdx)) {
+            current = current.filter(v => v !== optIdx);
+          } else {
+            if (current.length >= 2) {
+              showToast('最多选 2 项');
+              return;
+            }
+            current.push(optIdx);
+          }
+          answers[currentIndex] = current;
+        } else {
+          answers[currentIndex] = optIdx;
+        }
+        renderQuestion();
+      });
+    });
+
+    if (currentIndex === 29) {
+      const inp = document.getElementById('nameInput');
+      if (inp) inp.addEventListener('input', e => name = e.target.value);
+    }
+
+    updateProgress();
+    const hasAnswer = isMulti ? (answers[currentIndex] && answers[currentIndex].length > 0) : answers[currentIndex] !== null;
+    document.getElementById('nextBtn').disabled = !hasAnswer;
+    document.getElementById('prevBtn').style.visibility = currentIndex === 0 ? 'hidden' : 'visible';
+    document.getElementById('nextBtn').textContent = currentIndex === 29 ? '查看结果' : '下一题';
+  }
+
+  function computeResult() {
+    const scores = { lynx: 0, fox: 0, deer: 0, wolf: 0 };
+    const giftScores = { sunglasses: 0, perfume: 0, mouse: 0, keyboard: 0, turntable: 0, protein: 0 };
+    
+    for (let i = 0; i < 30; i++) {
+      const ans = answers[i];
+      if (ans === null || ans === undefined) continue;
+      const indices = Array.isArray(ans) ? ans : [ans];
+      indices.forEach(idx => {
+        const animal = ANIMALS[idx % 4];
+        scores[animal]++;
+        
+        // 21-25题（索引20-24）关联礼物
+        if (i >= 20 && i <= 24) {
+          if (idx === 0) { giftScores.sunglasses += 2; giftScores.perfume += 1; }
+          if (idx === 1) { giftScores.mouse += 2; giftScores.keyboard += 1; }
+          if (idx === 2) { giftScores.keyboard += 2; giftScores.mouse += 1; }
+          if (idx === 3) { giftScores.perfume += 2; giftScores.sunglasses += 1; }
+          if (idx === 4) { giftScores.turntable += 3; }
+          if (idx === 5) { giftScores.protein += 3; }
+        }
+      });
+    }
+    
+    let primary = 'lynx';
+    let maxScore = -1;
+    for (let [k, v] of Object.entries(scores)) {
+      if (v > maxScore) { maxScore = v; primary = k; }
+    }
+    
+    const sortedGifts = Object.entries(giftScores).filter(([_,v]) => v > 0).sort((a,b) => b[1] - a[1]);
+    const topGift = sortedGifts[0] ? GIFT_NAMES[sortedGifts[0][0]] : '神秘好物';
+    const secondGift = sortedGifts[1] ? GIFT_NAMES[sortedGifts[1][0]] : '';
+    
+    let group = '';
+    if (topGift === '墨镜' || topGift === '香水') group = '都市锋格系';
+    else if (topGift === '鼠标' || topGift === '键盘') group = '效率装备系';
+    else if (topGift === '唱片机') group = '复古氛围系';
+    else if (topGift === '蛋白粉') group = '运动机能系';
+    else group = '生活美学派';
+    
+    return {
+      animalName: ANIMAL_NAMES[primary],
+      subtitle: ANIMAL_SUB[primary],
+      topGift: topGift,
+      secondGift: secondGift,
+      group: group
+    };
+  }
+
+  function renderResult() {
+    const res = computeResult();
+    const displayName = name ? `${escapeHtml(name)} 的夜行动物` : '你的夜行动物';
+    const secondLine = res.secondGift ? ` / ${res.secondGift}` : '';
+    
+    const resultHtml = `
+      <div class="badge">✨ 人格画像</div>
+      <h2 style="font-size: 28px; margin-bottom: 8px;">${displayName}</h2>
+      <p style="color: #b7cdff; margin-bottom: 16px;">${res.subtitle}</p>
+      <p style="line-height: 1.6;">${res.animalName === '霓虹猞猁' ? '你对"好东西"的判断，往往来自风格、细节与个人气场。' : res.animalName === '工位雪狐' ? '你最在意的是顺手、稳定和长期使用体验。' : res.animalName === '暮色鹿' ? '你会被音乐、光线、质感和故事感打动。' : '你对状态管理很敏感，注重提升体能和恢复效率。'}</p>
+      <div class="gift-box">
+        <strong>${res.group}</strong><br>
+        <small>隐藏偏好带</small>
+        <div style="margin-top: 12px;"><strong>${res.topGift}${secondLine}</strong><br><small>最容易被这些打动</small></div>
+      </div>
+      <div class="share-buttons">
+        <button id="restartBtn">再测一次</button>
+        <button id="copyBtn" class="primary">复制结果</button>
+      </div>
+    `;
+    
+    document.getElementById('resultContent').innerHTML = resultHtml;
+    document.getElementById('quizCard').style.display = 'none';
+    document.getElementById('resultCard').classList.add('show');
+    
+    // 保存记录（包含每道题的答案）
+    saveRecord({
+      name: name,
+      animalName: res.animalName,
+      subtitle: res.subtitle,
+      topGift: res.topGift,
+      secondGift: res.secondGift,
+      group: res.group,
+      answers: [...answers]  // 保存完整的答案数组
+    });
+    
+    document.getElementById('restartBtn')?.addEventListener('click', () => {
+      currentIndex = 0;
+      answers = new Array(30).fill(null);
+      name = '';
+      document.getElementById('quizCard').style.display = 'block';
+      document.getElementById('resultCard').classList.remove('show');
+      renderQuestion();
+      window.scrollTo({ top: 0 });
+    });
+    
+    document.getElementById('copyBtn')?.addEventListener('click', () => {
+      const text = `${name ? name+' ' : ''}测出「${res.animalName}」· ${res.subtitle}，偏好带「${res.group}」，容易被「${res.topGift}${secondLine}」打动。`;
+      navigator.clipboard.writeText(text).then(() => showToast('已复制'));
+    });
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    });
+  }
+
+  // ==================== 事件绑定 ====================
+  document.getElementById('prevBtn').addEventListener('click', () => {
+    if (currentIndex > 0) {
+      currentIndex--;
+      renderQuestion();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
+  
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    if (currentIndex < 29) {
+      currentIndex++;
+      renderQuestion();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      renderResult();
+    }
+  });
+  
+  document.getElementById('exportBtn')?.addEventListener('click', exportToCSV);
+  document.getElementById('clearBtn')?.addEventListener('click', clearRecords);
+  
+  // 连续点击标题5次显示管理面板
+  let clickCount = 0;
+  document.querySelector('h1')?.addEventListener('click', () => {
+    clickCount++;
+    setTimeout(() => { clickCount = 0; }, 1000);
+    if (clickCount >= 5) {
+      document.getElementById('adminPanel').style.display = 'block';
+      showToast('数据管理面板已开启');
+      clickCount = 0;
+    }
+  });
+
+  updateAdminPanel();
+  renderQuestion();
+</script>
+</body>
+</html>
